@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculateur Énergétique — Méthode de Black (1996)</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:    #1a6b4a;
+      --primary-dk: #134d36;
+      --primary-lt: #e8f5ee;
+      --accent:     #f0a500;
+      --accent-lt:  #fff8e6;
+      --text:       #1c2b22;
+      --text-muted: #5a7065;
+      --bg:         #f4f9f6;
+      --card:       #ffffff;
+      --border:     #c8ddd4;
+      --radius:     12px;
+      --shadow:     0 4px 18px rgba(26,107,74,.10);
+      --transition: .25s ease;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.65;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      background: linear-gradient(135deg, var(--primary-dk) 0%, var(--primary) 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    header h1 {
+      font-size: clamp(1.5rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      position: relative;
+    }
+    header p.subtitle {
+      margin-top: .5rem;
+      font-size: .95rem;
+      opacity: .85;
+      position: relative;
+    }
+    .badge-source {
+      display: inline-block;
+      margin-top: .8rem;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 20px;
+      padding: .25rem .9rem;
+      font-size: .78rem;
+      letter-spacing: .04em;
+      position: relative;
+    }
+
+    /* ===== MAIN LAYOUT ===== */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+
+    /* ===== MENU PRINCIPAL ===== */
+    #menu-section {
+      display: block;
+    }
+    .menu-title {
+      text-align: center;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      font-weight: 500;
+    }
+    .menu-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .menu-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .menu-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--primary);
+      transform: scaleX(0);
+      transition: var(--transition);
+    }
+    .menu-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 28px rgba(26,107,74,.18);
+    }
+    .menu-card:hover::after { transform: scaleX(1); }
+    .menu-card.accent-card::after { background: var(--accent); }
+    .menu-card.accent-card:hover { border-color: var(--accent); }
+
+    .menu-card .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .menu-card h2 {
+      font-size: 1.2rem;
+      color: var(--primary);
+      margin-bottom: .6rem;
+    }
+    .menu-card.accent-card h2 { color: #b87800; }
+    .menu-card p {
+      font-size: .88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .menu-card .btn-menu {
+      display: inline-block;
+      margin-top: 1.2rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: .6rem 1.4rem;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .menu-card .btn-menu:hover { background: var(--primary-dk); }
+    .menu-card.accent-card .btn-menu { background: var(--accent); color: #1c2b22; }
+    .menu-card.accent-card .btn-menu:hover { background: #d49200; }
+
+    /* ===== SECTIONS CALCUL ===== */
+    .calc-section { display: none; }
+    .calc-section.active { display: block; }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+    .breadcrumb button {
+      background: none; border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 600;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .breadcrumb button:hover { color: var(--primary-dk); }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .card-title.accent { color: #b87800; }
+
+    /* ===== FORMULAIRE ===== */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: .35rem; }
+    .form-group label {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .form-group input,
+    .form-group select {
+      padding: .65rem .9rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      color: var(--text);
+      background: #fff;
+      transition: var(--transition);
+      outline: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26,107,74,.12);
+    }
+    .form-group .unit {
+      font-size: .78rem;
+      color: var(--text-muted);
+    }
+
+    /* Genre radio */
+    .genre-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .genre-option {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      cursor: pointer;
+    }
+    .genre-option input[type="radio"] { width: 18px; height: 18px; accent-color: var(--primary); }
+    .genre-option span { font-size: .95rem; font-weight: 500; }
+
+    /* Bouton calculer */
+    .btn-calc {
+      display: block;
+      width: 100%;
+      margin-top: 1.25rem;
+      padding: .85rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dk) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .02em;
+      transition: var(--transition);
+      box-shadow: 0 4px 14px rgba(26,107,74,.25);
+    }
+    .btn-calc:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(26,107,74,.35);
+    }
+    .btn-calc.accent-btn {
+      background: linear-gradient(135deg, var(--accent) 0%, #d49200 100%);
+      color: #1c2b22;
+      box-shadow: 0 4px 14px rgba(240,165,0,.25);
+    }
+    .btn-calc.accent-btn:hover { box-shadow: 0 6px 20px rgba(240,165,0,.35); }
+
+    /* ===== RÉSULTATS ===== */
+    .result-box {
+      display: none;
+      margin-top: 1.5rem;
+      animation: fadeIn .4s ease;
+    }
+    .result-box.show { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-main {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dk) 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .result-main.accent-result {
+      background: linear-gradient(135deg, var(--accent) 0%, #d49200 100%);
+      color: #1c2b22;
+    }
+    .result-main .result-label {
+      font-size: .9rem;
+      opacity: .85;
+      margin-bottom: .3rem;
+      font-weight: 500;
+    }
+    .result-main .result-value {
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+    }
+    .result-main .result-unit {
+      font-size: .95rem;
+      opacity: .8;
+      margin-top: .2rem;
+    }
+
+    .result-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .result-detail-item {
+      background: var(--primary-lt);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .result-detail-item.accent-item { background: var(--accent-lt); }
+    .result-detail-item .d-label {
+      font-size: .78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .3rem;
+    }
+    .result-detail-item .d-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .result-detail-item.accent-item .d-value { color: #b87800; }
+    .result-detail-item .d-unit {
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+
+    /* ===== INTERPRÉTATION ===== */
+    .interpretation-box {
+      background: var(--primary-lt);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1rem;
+    }
+    .interpretation-box.accent-interp {
+      background: var(--accent-lt);
+      border-left-color: var(--accent);
+    }
+    .interpretation-box h4 {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: .5rem;
+    }
+    .interpretation-box.accent-interp h4 { color: #b87800; }
+    .interpretation-box p {
+      font-size: .88rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ===== EXPLICATIONS PÉDAGOGIQUES ===== */
+    .info-accordion {
+      margin-top: 1.5rem;
+    }
+    .accordion-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: .75rem;
+      overflow: hidden;
+    }
+    .accordion-header {
+      background: var(--card);
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: .95rem;
+      color: var(--primary);
+      transition: var(--transition);
+      border: none;
+      width: 100%;
+      text-align: left;
+    }
+    .accordion-header:hover { background: var(--primary-lt); }
+    .accordion-header .chevron {
+      font-size: 1rem;
+      transition: transform .3s;
+    }
+    .accordion-header.open .chevron { transform: rotate(180deg); }
+    .accordion-body {
+      display: none;
+      padding: 1.25rem;
+      background: #fafcfb;
+      border-top: 1px solid var(--border);
+      font-size: .9rem;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .accordion-body.open { display: block; animation: fadeIn .3s ease; }
+
+    .formula-display {
+      background: #f0f7f4;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .9rem 1.2rem;
+      font-family: 'Courier New', monospace;
+      font-size: .92rem;
+      margin: .75rem 0;
+      color: var(--primary-dk);
+      font-weight: 600;
+    }
+
+    /* Table NAP */
+    .nap-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+      margin-top: .75rem;
+    }
+    .nap-table th {
+      background: var(--primary);
+      color: #fff;
+      padding: .6rem .9rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .nap-table td {
+      padding: .55rem .9rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .nap-table tr:nth-child(even) td { background: var(--primary-lt); }
+    .nap-table tr:last-child td { border-bottom: none; }
+
+    /* ===== ERREUR ===== */
+    .error-msg {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      color: #b91c1c;
+      font-size: .88rem;
+      margin-top: .75rem;
+    }
+    .error-msg.show { display: block; }
+
+    /* ===== FOOTER ===== */
+    footer {
+      text-align: center;
+      padding: 2rem 1.25rem;
+      font-size: .8rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--card);
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .result-detail-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== EN-TÊTE ===== -->
+<header>
+  <h1>⚡ Calculateur Énergétique</h1>
+  <p class="subtitle">Métabolisme Basal &amp; Dépense Énergétique Journalière</p>
+  <span class="badge-source">Méthode de Black et al. (1996) — Référence AFDN</span>
+</header>
+
+<main>
+
+  <!-- ===== MENU PRINCIPAL ===== -->
+  <section id="menu-section">
+    <p class="menu-title">Sélectionnez le calcul que vous souhaitez effectuer :</p>
+
+    <div class="menu-cards">
+      <!-- Carte MB -->
+      <div class="menu-card" onclick="showSection('mb-section')">
+        <span class="icon">🔥</span>
+        <h2>Métabolisme Basal (MB)</h2>
+        <p>Calculez la dépense énergétique minimale de votre organisme au repos, nécessaire à ses fonctions vitales.</p>
+        <button class="btn-menu" onclick="showSection('mb-section'); event.stopPropagation();">
+          Calculer le MB →
+        </button>
+      </div>
+
+      <!-- Carte DEJ -->
+      <div class="menu-card accent-card" onclick="showSection('dej-section')">
+        <span class="icon">🏃</span>
+        <h2>Dépense Énergétique Journalière (DEJ)</h2>
+        <p>Estimez vos besoins caloriques quotidiens réels en tenant compte de votre niveau d'activité physique.</p>
+        <button class="btn-menu accent-btn" onclick="showSection('dej-section'); event.stopPropagation();">
+          Calculer la DEJ →
+        </button>
+      </div>
+    </div>
+
+    <!-- Explication courte en bas du menu -->
+    <div class="card">
+      <div class="card-title">📖 À propos de la méthode de Black (1996)</div>
+      <p style="font-size:.9rem; color:var(--text-muted); line-height:1.7;">
+        La formule de <strong>Black et al. (1996)</strong> est issue d'une étude menée sur <strong>574 sujets</strong> âgés de 2 à 95 ans,
+        utilisant la technique de l'eau doublement marquée (<em>doubly-labelled water</em>), considérée comme la méthode de référence.
+        Elle est recommandée par l'<strong>Association Française des Diététiciens Nutritionnistes (AFDN)</strong> dans la pratique clinique.
+        Les deux modules ci-dessus vous permettent d'effectuer chaque calcul séparément.
+      </p>
+      <p style="font-size:.78rem; color:var(--text-muted); margin-top:.75rem;">
+        <strong>Source :</strong> Black, A.E., Coward, W.A., Cole, T.J., Prentice, A.M. — <em>Human energy expenditure in affluent societies: An analysis of 574 doubly-labelled water measurements.</em> Eur J Clin Nutr, 50(2), 1996, pp. 72–92.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION MÉTABOLISME BASAL ===== -->
+  <section id="mb-section" class="calc-section">
+    <div class="breadcrumb">
+      <button onclick="showSection('menu-section')">⬅ Accueil</button>
+      <span>›</span>
+      <span>Métabolisme Basal (MB)</span>
+    </div>
+
+    <!-- Formulaire MB -->
+    <div class="card">
+      <div class="card-title">🔥 Calcul du Métabolisme Basal</div>
+
+      <div class="form-grid">
+        <!-- Genre -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Sexe</label>
+          <div class="genre-group">
+            <label class="genre-option">
+              <input type="radio" name="mb-genre" value="homme" checked />
+              <span>👨 Homme</span>
+            </label>
+            <label class="genre-option">
+              <input type="radio" name="mb-genre" value="femme" />
+              <span>👩 Femme</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Poids -->
+        <div class="form-group">
+          <label>Poids</label>
+          <input type="number" id="mb-poids" min="30" max="300" step="0.1" placeholder="ex. 70" />
+          <span class="unit">kilogrammes (kg)</span>
+        </div>
+
+        <!-- Taille -->
+        <div class="form-group">
+          <label>Taille</label>
+          <input type="number" id="mb-taille" min="100" max="250" step="1" placeholder="ex. 175" />
+          <span class="unit">centimètres (cm)</span>
+        </div>
+
+        <!-- Âge -->
+        <div class="form-group">
+          <label>Âge</label>
+          <input type="number" id="mb-age" min="2" max="100" step="1" placeholder="ex. 35" />
+          <span class="unit">années</span>
+        </div>
+      </div>
+
+      <div id="mb-error" class="error-msg">⚠️ Veuillez renseigner tous les champs avec des valeurs valides.</div>
+
+      <button class="btn-calc" onclick="calculerMB()">🔥 Calculer mon Métabolisme Basal</button>
+    </div>
+
+    <!-- Résultat MB -->
+    <div id="mb-result" class="result-box">
+      <div class="result-main">
+        <div class="result-label">Votre Métabolisme Basal (MB)</div>
+        <div class="result-value" id="mb-kcal-val">—</div>
+        <div class="result-unit">kcal / jour</div>
+      </div>
+
+      <div class="result-detail-grid">
+        <div class="result-detail-item">
+          <div class="d-label">MB en kJ/jour</div>
+          <div class="d-value" id="mb-kj-val">—</div>
+          <div class="d-unit">kJ/jour</div>
+        </div>
+        <div class="result-detail-item">
+          <div class="d-label">MB en kcal/heure</div>
+          <div class="d-value" id="mb-heure-val">—</div>
+          <div class="d-unit">kcal/h</div>
+        </div>
+        <div class="result-detail-item">
+          <div class="d-label">Profil calculé</div>
+          <div class="d-value" id="mb-profil-val" style="font-size:1rem;">—</div>
+          <div class="d-unit">sexe / âge</div>
+        </div>
+      </div>
+
+      <div id="mb-interpretation" class="interpretation-box">
+        <h4>📊 Interprétation de votre résultat</h4>
+        <p id="mb-interp-text">—</p>
+      </div>
+    </div>
+
+    <!-- Explications pédagogiques MB -->
+    <div class="info-accordion">
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>❓ Qu'est-ce que le Métabolisme Basal ?</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>Le <strong>métabolisme basal (MB)</strong>, aussi appelé <em>métabolisme de base</em> ou <em>dépense énergétique de repos (DER)</em>, représente la quantité minimale d'énergie que votre organisme consomme pour maintenir ses fonctions vitales au repos complet, à jeun, dans un environnement thermoneutre.</p>
+          <p style="margin-top:.75rem;">Ces fonctions vitales incluent notamment :</p>
+          <ul style="margin:.5rem 0 .75rem 1.2rem; line-height:1.8;">
+            <li>Le fonctionnement du <strong>cœur</strong> et du système cardiovasculaire</li>
+            <li>La <strong>respiration</strong> et les échanges gazeux</li>
+            <li>L'activité du <strong>cerveau</strong> et du système nerveux</li>
+            <li>La <strong>digestion</strong> et les processus métaboliques cellulaires</li>
+            <li>Le maintien de la <strong>température corporelle</strong> (37°C)</li>
+            <li>La <strong>synthèse protéique</strong> et le renouvellement cellulaire</li>
+          </ul>
+          <p>Le MB représente généralement <strong>60 à 75 %</strong> de la dépense énergétique totale journalière d'un individu sédentaire.</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>🧮 La formule de Black (1996) pour le MB</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>La formule de <strong>Black et al. (1996)</strong> est considérée comme la référence actuelle, notamment recommandée par l'<strong>AFDN</strong> (Association Française des Diététiciens Nutritionnistes). Elle a été établie à partir de mesures par <em>eau doublement marquée</em> sur 574 sujets de 2 à 95 ans.</p>
+
+          <p style="margin-top:.75rem;"><strong>Formule pour les hommes :</strong></p>
+          <div class="formula-display">MB (MJ/j) = 1,083 × P<sup>0,48</sup> × T<sup>0,50</sup> × Â<sup>−0,13</sup></div>
+
+          <p><strong>Formule pour les femmes :</strong></p>
+          <div class="formula-display">MB (MJ/j) = 0,963 × P<sup>0,48</sup> × T<sup>0,50</sup> × Â<sup>−0,13</sup></div>
+
+          <p style="margin-top:.75rem;"><strong>Conversion en kcal/jour :</strong></p>
+          <div class="formula-display">MB (kcal/j) = MB (MJ/j) × 239,006</div>
+
+          <p style="margin-top:.75rem;">Où : <strong>P</strong> = poids (kg) · <strong>T</strong> = taille (m) · <strong>Â</strong> = âge (années)</p>
+
+          <p style="margin-top:.75rem; font-size:.85rem; color:var(--text-muted);">
+            <strong>Source :</strong> Black, A.E. et al. — Eur J Clin Nutr, 50(2), 1996, pp. 72–92.
+          </p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>📌 Facteurs influençant le MB</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>Plusieurs facteurs biologiques et physiologiques influencent le métabolisme basal :</p>
+          <ul style="margin:.5rem 0 .75rem 1.2rem; line-height:1.9;">
+            <li><strong>Le sexe :</strong> Les hommes ont en général un MB plus élevé que les femmes (masse musculaire plus importante).</li>
+            <li><strong>L'âge :</strong> Le MB diminue de 2 à 3 % par décennie après l'âge adulte.</li>
+            <li><strong>Le poids corporel :</strong> Plus la masse corporelle est élevée, plus le MB est important.</li>
+            <li><strong>La taille :</strong> Les personnes de grande taille ont une surface corporelle plus grande et un MB plus élevé.</li>
+            <li><strong>La composition corporelle :</strong> La masse musculaire (tissu maigre) est métaboliquement plus active que la masse grasse.</li>
+            <li><strong>L'état hormonal :</strong> Les hormones thyroïdiennes jouent un rôle majeur dans la régulation du MB.</li>
+            <li><strong>La génétique :</strong> Des variations individuelles de 10 à 15 % sont observées à caractéristiques égales.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION DÉPENSE ÉNERGÉTIQUE JOURNALIÈRE ===== -->
+  <section id="dej-section" class="calc-section">
+    <div class="breadcrumb">
+      <button onclick="showSection('menu-section')">⬅ Accueil</button>
+      <span>›</span>
+      <span>Dépense Énergétique Journalière (DEJ)</span>
+    </div>
+
+    <!-- Formulaire DEJ -->
+    <div class="card">
+      <div class="card-title accent">🏃 Calcul de la Dépense Énergétique Journalière</div>
+
+      <div class="form-grid">
+        <!-- Genre -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Sexe</label>
+          <div class="genre-group">
+            <label class="genre-option">
+              <input type="radio" name="dej-genre" value="homme" checked />
+              <span>👨 Homme</span>
+            </label>
+            <label class="genre-option">
+              <input type="radio" name="dej-genre" value="femme" />
+              <span>👩 Femme</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Poids -->
+        <div class="form-group">
+          <label>Poids</label>
+          <input type="number" id="dej-poids" min="30" max="300" step="0.1" placeholder="ex. 70" />
+          <span class="unit">kilogrammes (kg)</span>
+        </div>
+
+        <!-- Taille -->
+        <div class="form-group">
+          <label>Taille</label>
+          <input type="number" id="dej-taille" min="100" max="250" step="1" placeholder="ex. 175" />
+          <span class="unit">centimètres (cm)</span>
+        </div>
+
+        <!-- Âge -->
+        <div class="form-group">
+          <label>Âge</label>
+          <input type="number" id="dej-age" min="2" max="100" step="1" placeholder="ex. 35" />
+          <span class="unit">années</span>
+        </div>
+
+        <!-- Niveau d'activité -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Niveau d'activité physique (NAP)</label>
+          <select id="dej-nap">
+            <option value="">— Sélectionnez votre niveau —</option>
+            <option value="1.2">Sédentaire (NAP 1,2) — Peu ou pas d'exercice, travail de bureau</option>
+            <option value="1.375">Légèrement actif (NAP 1,375) — Exercice léger 1 à 3 j/semaine</option>
+            <option value="1.55">Modérément actif (NAP 1,55) — Exercice modéré 3 à 5 j/semaine</option>
+            <option value="1.725">Très actif (NAP 1,725) — Exercice intense 6 à 7 j/semaine</option>
+            <option value="1.9">Extrêmement actif (NAP 1,9) — Travail physique intense ou athlète</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="dej-error" class="error-msg">⚠️ Veuillez renseigner tous les champs avec des valeurs valides.</div>
+
+      <button class="btn-calc accent-btn" onclick="calculerDEJ()">🏃 Calculer ma Dépense Énergétique Journalière</button>
+    </div>
+
+    <!-- Résultat DEJ -->
+    <div id="dej-result" class="result-box">
+      <div class="result-main accent-result">
+        <div class="result-label">Votre Dépense Énergétique Journalière (DEJ)</div>
+        <div class="result-value" id="dej-kcal-val">—</div>
+        <div class="result-unit">kcal / jour</div>
+      </div>
+
+      <div class="result-detail-grid">
+        <div class="result-detail-item accent-item">
+          <div class="d-label">MB calculé</div>
+          <div class="d-value" id="dej-mb-val">—</div>
+          <div class="d-unit">kcal/jour</div>
+        </div>
+        <div class="result-detail-item accent-item">
+          <div class="d-label">Facteur NAP</div>
+          <div class="d-value" id="dej-nap-val">—</div>
+          <div class="d-unit">niveau activité</div>
+        </div>
+        <div class="result-detail-item accent-item">
+          <div class="d-label">DEJ en kJ/jour</div>
+          <div class="d-value" id="dej-kj-val">—</div>
+          <div class="d-unit">kJ/jour</div>
+        </div>
+        <div class="result-detail-item accent-item">
+          <div class="d-label">DEJ par semaine</div>
+          <div class="d-value" id="dej-semaine-val">—</div>
+          <div class="d-unit">kcal/semaine</div>
+        </div>
+      </div>
+
+      <div id="dej-interpretation" class="interpretation-box accent-interp">
+        <h4>📊 Interprétation de votre résultat</h4>
+        <p id="dej-interp-text">—</p>
+      </div>
+    </div>
+
+    <!-- Explications pédagogiques DEJ -->
+    <div class="info-accordion">
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>❓ Qu'est-ce que la Dépense Énergétique Journalière ?</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>La <strong>Dépense Énergétique Journalière (DEJ)</strong> représente la quantité totale d'énergie dépensée par un individu sur une période de 24 heures. Elle intègre l'ensemble des composantes énergétiques :</p>
+          <ul style="margin:.5rem 0 .75rem 1.2rem; line-height:1.9;">
+            <li><strong>Le Métabolisme Basal (MB) :</strong> 60 à 75 % de la DEJ — fonctions vitales au repos</li>
+            <li><strong>L'Activité Physique :</strong> 15 à 30 % — toutes les activités volontaires</li>
+            <li><strong>La Thermogenèse alimentaire (ADS) :</strong> 8 à 10 % — énergie pour digérer et métaboliser les aliments</li>
+            <li><strong>La Thermorégulation :</strong> variable — maintien de la température corporelle</li>
+          </ul>
+          <p>La DEJ est l'indicateur de référence pour établir les <strong>apports nutritionnels conseillés (ANC)</strong> d'un individu.</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>🧮 Formule de calcul de la DEJ selon Black</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>La <strong>Dépense Énergétique Journalière</strong> est calculée en multipliant le Métabolisme Basal par le <strong>Niveau d'Activité Physique (NAP)</strong> :</p>
+          <div class="formula-display">DEJ (kcal/j) = MB (kcal/j) × NAP</div>
+          <p style="margin-top:.75rem;">Black (1996) précise que les besoins énergétiques journaliers varient selon le niveau d'activité :</p>
+          <ul style="margin:.5rem 0 .75rem 1.2rem; line-height:1.8;">
+            <li>Minimum pour une personne sédentaire : <strong>MB × 1,2</strong></li>
+            <li>Maximum pour une personne très sportive : <strong>MB × 4,5</strong></li>
+          </ul>
+          <p style="font-size:.85rem; color:var(--text-muted);">
+            <strong>Source :</strong> Black, A.E. et al. — Eur J Clin Nutr, 50(2), 1996, pp. 72–92.
+          </p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>📋 Tableau des Niveaux d'Activité Physique (NAP)</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>Le <strong>Niveau d'Activité Physique (NAP)</strong> est un coefficient multiplicateur qui traduit l'intensité globale de l'activité physique quotidienne. L'ANSES recommande un NAP moyen de référence de <strong>1,63</strong> pour la population générale adulte.</p>
+          <table class="nap-table">
+            <thead>
+              <tr>
+                <th>Niveau</th>
+                <th>Description</th>
+                <th>Facteur NAP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Sédentaire</strong></td>
+                <td>Peu ou pas d'exercice, travail de bureau, déplacements en voiture</td>
+                <td><strong>1,2</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Légèrement actif</strong></td>
+                <td>Exercice léger 1 à 3 jours/semaine (marche, yoga doux)</td>
+                <td><strong>1,375</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Modérément actif</strong></td>
+                <td>Exercice modéré 3 à 5 jours/semaine (natation, vélo, jogging)</td>
+                <td><strong>1,55</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Très actif</strong></td>
+                <td>Exercice intense 6 à 7 jours/semaine ou travail physique</td>
+                <td><strong>1,725</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Extrêmement actif</strong></td>
+                <td>Athlète de haut niveau, travail physique très intense quotidien</td>
+                <td><strong>1,9</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="margin-top:.75rem; font-size:.82rem; color:var(--text-muted);">
+            Sources : Black et al. (1996) ; ANSES — Actualisation des repères du PNNS : révision des repères de consommations alimentaires (2016).
+          </p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span>🍽️ Comment utiliser la DEJ pour son alimentation ?</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <p>La DEJ représente l'<strong>apport calorique d'équilibre</strong> : consommer autant de calories que votre DEJ permet de maintenir votre poids stable.</p>
+          <ul style="margin:.5rem 0 .75rem 1.2rem; line-height:1.9;">
+            <li><strong>Perte de poids :</strong> Consommer environ 300 à 500 kcal/jour en dessous de la DEJ (déficit modéré et progressif).</li>
+            <li><strong>Maintien du poids :</strong> Consommer l'équivalent de la DEJ calculée.</li>
+            <li><strong>Prise de masse musculaire :</strong> Consommer 200 à 400 kcal/jour au-dessus de la DEJ (surplus contrôlé).</li>
+          </ul>
+          <p style="font-size:.85rem; color:var(--text-muted);">⚠️ Ces valeurs sont des estimations. Consultez un professionnel de santé ou un diététicien pour un suivi personnalisé.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== PIED DE PAGE ===== -->
+<footer>
+  <p>
+    <strong>Références scientifiques :</strong>
+    Black, A.E., Coward, W.A., Cole, T.J., Prentice, A.M. —
+    <em>Human energy expenditure in affluent societies: An analysis of 574 doubly-labelled water measurements.</em>
+    <a href="https://pubmed.ncbi.nlm.nih.gov/8641250/" target="_blank" rel="noopener">Eur J Clin Nutr, 50(2), 1996, pp. 72–92.</a>
+  </p>
+  <p style="margin-top:.5rem;">
+    Formule recommandée par l'<strong>AFDN</strong> (Association Française des Diététiciens Nutritionnistes) — Application à usage informatif uniquement.
+  </p>
+</footer>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+  // ---- Navigation entre sections ----
+  function showSection(id) {
+    document.querySelectorAll('#menu-section, .calc-section').forEach(s => {
+      s.style.display = 'none';
+      s.classList.remove('active');
+    });
+    const target = document.getElementById(id);
+    if (target) {
+      target.style.display = 'block';
+      target.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  // Initialisation : afficher le menu
+  document.addEventListener('DOMContentLoaded', () => {
+    showSection('menu-section');
+  });
+
+  // ---- Accordéon ----
+  function toggleAccordion(btn) {
+    const body = btn.nextElementSibling;
+    const isOpen = body.classList.contains('open');
+    // Fermer tous les accordéons du même groupe
+    const parent = btn.closest('.info-accordion');
+    parent.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+    parent.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('open'));
+    // Ouvrir celui cliqué si était fermé
+    if (!isOpen) {
+      body.classList.add('open');
+      btn.classList.add('open');
+    }
+  }
+
+  // ---- Calcul MB ----
+  function calculerMB() {
+    const genre  = document.querySelector('input[name="mb-genre"]:checked').value;
+    const poids  = parseFloat(document.getElementById('mb-poids').value);
+    const tailleC = parseFloat(document.getElementById('mb-taille').value);
+    const age    = parseFloat(document.getElementById('mb-age').value);
+    const errBox = document.getElementById('mb-error');
+
+    // Validation
+    if (!poids || !tailleC || !age || poids <= 0 || tailleC <= 0 || age <= 0) {
+      errBox.classList.add('show');
+      document.getElementById('mb-result').classList.remove('show');
+      return;
+    }
+    errBox.classList.remove('show');
+
+    const tailleM = tailleC / 100; // cm → m
+
+    // Formule Black (MJ/j) — Black et al. 1996
+    // La formule donne le résultat en MJ/jour. Conversion : 1 MJ = 239,006 kcal
+    const coeff = (genre === 'homme') ? 1.083 : 0.963;
+    const mbMJ   = coeff * Math.pow(poids, 0.48) * Math.pow(tailleM, 0.50) * Math.pow(age, -0.13);
+    const mbKcal = mbMJ * 239.006;
+    const mbKJ   = mbMJ * 1000;  // MJ → kJ
+    const mbHeure = mbKcal / 24;
+
+    // Affichage
+    document.getElementById('mb-kcal-val').textContent = Math.round(mbKcal).toLocaleString('fr-FR');
+    document.getElementById('mb-kj-val').textContent   = Math.round(mbKJ).toLocaleString('fr-FR');
+    document.getElementById('mb-heure-val').textContent = mbHeure.toFixed(1);
+    document.getElementById('mb-profil-val').textContent = (genre === 'homme' ? '♂ H' : '♀ F') + ' · ' + age + ' ans';
+
+    // Interprétation
+    let interp = '';
+    if (mbKcal < 1200) {
+      interp = `Votre métabolisme basal de <strong>${Math.round(mbKcal)} kcal/jour</strong> est relativement bas. Cela peut s'expliquer par votre âge, votre poids ou votre taille. Votre organisme a besoin d'au minimum cette quantité d'énergie pour assurer ses fonctions vitales, même en cas de repos total.`;
+    } else if (mbKcal < 1600) {
+      interp = `Votre métabolisme basal de <strong>${Math.round(mbKcal)} kcal/jour</strong> se situe dans la fourchette basse à normale. Cela représente l'énergie incompressible que votre corps consomme au repos pour maintenir ses fonctions vitales (cœur, cerveau, respiration, etc.).`;
+    } else if (mbKcal < 2000) {
+      interp = `Votre métabolisme basal de <strong>${Math.round(mbKcal)} kcal/jour</strong> est dans la fourchette normale. Votre organisme consomme cette énergie au repos complet pour maintenir l'ensemble de ses fonctions vitales. Ce chiffre constitue la base de calcul de vos besoins caloriques quotidiens.`;
+    } else {
+      interp = `Votre métabolisme basal de <strong>${Math.round(mbKcal)} kcal/jour</strong> est élevé, ce qui reflète généralement une masse corporelle importante ou une grande taille. Votre organisme nécessite cette énergie minimale pour fonctionner, indépendamment de toute activité physique.`;
+    }
+    interp += ` <br><br><em>Note : le MB représente généralement 60 à 75 % de la dépense énergétique totale journalière. Pour calculer vos besoins caloriques réels, utilisez le module <strong>Dépense Énergétique Journalière</strong> depuis le menu principal.</em>`;
+
+    document.getElementById('mb-interp-text').innerHTML = interp;
+    document.getElementById('mb-result').classList.add('show');
+    document.getElementById('mb-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---- Calcul DEJ ----
+  function calculerDEJ() {
+    const genre   = document.querySelector('input[name="dej-genre"]:checked').value;
+    const poids   = parseFloat(document.getElementById('dej-poids').value);
+    const tailleC = parseFloat(document.getElementById('dej-taille').value);
+    const age     = parseFloat(document.getElementById('dej-age').value);
+    const nap     = parseFloat(document.getElementById('dej-nap').value);
+    const errBox  = document.getElementById('dej-error');
+
+    // Validation
+    if (!poids || !tailleC || !age || !nap || poids <= 0 || tailleC <= 0 || age <= 0) {
+      errBox.classList.add('show');
+      document.getElementById('dej-result').classList.remove('show');
+      return;
+    }
+    errBox.classList.remove('show');
+
+    const tailleM = tailleC / 100;
+
+    // Calcul MB (MJ/j) — Black et al. 1996
+    // La formule donne le résultat en MJ/jour. Conversion : 1 MJ = 239,006 kcal
+    const coeff = (genre === 'homme') ? 1.083 : 0.963;
+    const mbMJ   = coeff * Math.pow(poids, 0.48) * Math.pow(tailleM, 0.50) * Math.pow(age, -0.13);
+    const mbKcal = mbMJ * 239.006;
+
+    // DEJ
+    const dejKcal   = mbKcal * nap;
+    const dejKJ     = dejKcal * 4.1855;
+    const dejSemaine = dejKcal * 7;
+
+    // Libellé NAP
+    const napLabels = {
+      '1.2':   'Sédentaire',
+      '1.375': 'Légèrement actif',
+      '1.55':  'Modérément actif',
+      '1.725': 'Très actif',
+      '1.9':   'Extrêmement actif'
+    };
+    const napLabel = napLabels[String(nap)] || String(nap);
+
+    // Affichage
+    document.getElementById('dej-kcal-val').textContent   = Math.round(dejKcal).toLocaleString('fr-FR');
+    document.getElementById('dej-mb-val').textContent     = Math.round(mbKcal).toLocaleString('fr-FR');
+    document.getElementById('dej-nap-val').textContent    = nap + ' (' + napLabel + ')';
+    document.getElementById('dej-kj-val').textContent     = Math.round(dejKJ).toLocaleString('fr-FR');
+    document.getElementById('dej-semaine-val').textContent = Math.round(dejSemaine).toLocaleString('fr-FR');
+
+    // Interprétation
+    let interp = `Votre dépense énergétique journalière est estimée à <strong>${Math.round(dejKcal).toLocaleString('fr-FR')} kcal/jour</strong> pour un profil <strong>${napLabel.toLowerCase()}</strong> (NAP = ${nap}).`;
+    interp += ` Elle est calculée à partir de votre métabolisme basal de <strong>${Math.round(mbKcal)} kcal/jour</strong>, multiplié par votre facteur d'activité physique.`;
+    interp += `<br><br>`;
+
+    if (dejKcal < 1500) {
+      interp += `⚠️ Cette valeur est inférieure aux recommandations minimales générales. Un apport calorique trop bas peut nuire à votre santé. Consultez un professionnel de santé.`;
+    } else if (dejKcal < 2000) {
+      interp += `Pour <strong>maintenir votre poids</strong>, visez un apport de ≈ ${Math.round(dejKcal)} kcal/j. Pour une <strong>perte de poids progressive</strong>, un déficit de 300 à 500 kcal/j est recommandé (soit ${Math.round(dejKcal - 400)} à ${Math.round(dejKcal - 300)} kcal/j).`;
+    } else if (dejKcal < 2800) {
+      interp += `Pour <strong>maintenir votre poids</strong>, visez un apport de ≈ ${Math.round(dejKcal)} kcal/j. Pour une <strong>perte de poids progressive</strong>, un déficit de 300 à 500 kcal/j est recommandé (soit ${Math.round(dejKcal - 400)} à ${Math.round(dejKcal - 300)} kcal/j). Pour une <strong>prise de masse musculaire</strong>, un surplus de 200 à 400 kcal/j est adapté.`;
+    } else {
+      interp += `Votre DEJ élevée reflète un niveau d'activité physique important. Pour <strong>maintenir votre poids</strong>, visez un apport de ≈ ${Math.round(dejKcal)} kcal/j. Veillez à une alimentation suffisamment riche en glucides complexes et en protéines pour soutenir vos performances.`;
+    }
+
+    interp += `<br><br><em>⚠️ Ces valeurs sont des estimations basées sur la formule de Black et al. (1996). Pour un suivi nutritionnel personnalisé, consultez un diététicien-nutritionniste.</em>`;
+
+    document.getElementById('dej-interp-text').innerHTML = interp;
+    document.getElementById('dej-result').classList.add('show');
+    document.getElementById('dej-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---- Touche Entrée pour lancer le calcul ----
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      const mbSection  = document.getElementById('mb-section');
+      const dejSection = document.getElementById('dej-section');
+      if (mbSection && mbSection.classList.contains('active'))  calculerMB();
+      if (dejSection && dejSection.classList.contains('active')) calculerDEJ();
+    }
+  });
+</script>
+
+</body>
+</html>
